@@ -1,0 +1,15 @@
+{
+  "name": "monitor-sdk-project",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:sdk": "pnpm --filter @monitor/browser dev",
+    "dev:test": "pnpm --filter monitor-test dev",
+    "dev:server": "pnpm --filter monitor-test run server",
+    "dev": "concurrently \"pnpm dev:sdk\" \"pnpm dev:server\" \"pnpm dev:test\"",
+    "build": "pnpm --filter @monitor/browser build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 

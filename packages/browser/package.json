@@ -1,0 +1,34 @@
+{
+  "name": "@monitor/browser",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/monitor-sdk.umd.cjs",
+  "module": "./dist/monitor-sdk.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/monitor-sdk.js",
+      "require": "./dist/monitor-sdk.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "@types/react": "^18.2.0"
+  },
+  "peerDependencies": {
+    "vue": "^2.6.0 || ^3.0.0",
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@types/node": "^20.8.2",
+    "typescript": "^5.0.0"
+  }
+} 
