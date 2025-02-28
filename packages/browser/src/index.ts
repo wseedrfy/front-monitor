@@ -6,13 +6,13 @@
 import { init } from './core';
 import { ErrorBoundary } from './plugins/react';
 import { MonitorVue } from './plugins/vue';
-import { breadcrumb } from './core/breadcrumb';
+import { breadcrumb , BreadcrumbTypes } from './core/breadcrumb';
 import { loggers } from './utils/logger';
 import { log } from './core/log';
-import type { 
+import type {   
   InitOptions,
   ReportDataType,
-  PerformanceMetrics
+  PerformanceMetrics,
 } from './types';
 import {
   ErrorTypes,
@@ -31,7 +31,8 @@ export {
   // 导出枚举
   ErrorTypes,
   EventTypes,
-  Severity
+  Severity,
+  BreadcrumbTypes
 };
 
 // 导出类型

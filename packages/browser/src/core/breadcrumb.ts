@@ -1,6 +1,8 @@
 import { InitOptions } from '../types';
 import { getTimestamp, nativeTryCatch } from '../utils';
+import { loggers } from '../utils/logger';
 
+const logger = loggers.breadcrumb;
 export enum BreadcrumbTypes {
   ROUTE = 'Route',
   CLICK = 'Click',
@@ -45,6 +47,8 @@ export class Breadcrumb {
     }
     this.stack.push(data);
     this.stack.sort((a, b) => a.time! - b.time!);
+    
+    logger.debug('Breadcrumb pushed:', data);
   }
 
   private shift(): boolean {
@@ -65,6 +69,14 @@ export class Breadcrumb {
     if (typeof beforePushBreadcrumb === 'function') {
       this.beforePushBreadcrumb = beforePushBreadcrumb;
     }
+  }
+
+  /**
+   * 获取用户行为轨迹
+   */
+  public getBreadcrumbs(): BreadcrumbData[] {
+    logger.debug('Retrieving breadcrumbs:', this.stack);
+    return this.stack;
   }
 }
 

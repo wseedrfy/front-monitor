@@ -2,6 +2,9 @@ import { ErrorTypes, Severity } from '../types';
 import { breadcrumb, BreadcrumbTypes } from './breadcrumb';
 import { transportData } from './transport';
 import { getLocationHref, getTimestamp } from '../utils';
+import { loggers } from '../utils/logger';
+
+const logger = loggers.network;
 
 interface NetworkStatus {
   online: boolean;
@@ -15,6 +18,7 @@ export class NetworkMonitor {
   private lastStatus: NetworkStatus;
 
   constructor() {
+    logger.debug('网络监控初始化...');
     this.lastStatus = {
       online: navigator.onLine
     };
@@ -22,19 +26,24 @@ export class NetworkMonitor {
   }
 
   private init(): void {
+    logger.debug('开始监听网络状态...');
     this.initOnlineStatus();
     this.initConnectionInfo();
+    logger.debug('网络监控初始化完成');
   }
 
   /**
    * 监控在线状态
    */
   private initOnlineStatus(): void {
+    logger.debug('监听在线状态变化');
     window.addEventListener('online', () => {
+      logger.debug('网络已连接');
       this.handleNetworkChange({ online: true });
     });
 
     window.addEventListener('offline', () => {
+      logger.debug('网络已断开');
       this.handleNetworkChange({ online: false });
     });
   }
@@ -48,7 +57,17 @@ export class NetworkMonitor {
                       (navigator as any).mozConnection || 
                       (navigator as any).webkitConnection;
     
-    if (!connection) return;
+    if (!connection) {
+      logger.debug('浏览器不支持网络信息API');
+      return;
+    }
+
+    logger.debug('当前网络状态:', {
+      type: connection.effectiveType,
+      downlink: connection.downlink + 'Mbps',
+      rtt: connection.rtt + 'ms',
+      saveData: connection.saveData ? '开启' : '关闭'
+    });
 
     // 初始化网络状态
     this.handleNetworkChange({
@@ -61,6 +80,12 @@ export class NetworkMonitor {
 
     // 监听网络变化
     connection.addEventListener('change', () => {
+      logger.debug('网络状态变化:', {
+        type: connection.effectiveType,
+        downlink: connection.downlink + 'Mbps',
+        rtt: connection.rtt + 'ms'
+      });
+      
       this.handleNetworkChange({
         online: navigator.onLine,
         effectiveType: connection.effectiveType,
@@ -77,6 +102,11 @@ export class NetworkMonitor {
   private handleNetworkChange(status: NetworkStatus): void {
     // 检查状态是否有变化
     if (this.isStatusChanged(status)) {
+      logger.debug('网络状态发生变化:', {
+        from: this.lastStatus,
+        to: status
+      });
+      
       // 记录用户行为
       breadcrumb.push({
         type: BreadcrumbTypes.PERFORMANCE,

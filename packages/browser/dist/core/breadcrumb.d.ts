@@ -27,5 +27,9 @@ export declare class Breadcrumb {
     private shift;
     getStack(): BreadcrumbData[];
     bindOptions(options?: InitOptions): void;
+    /**
+     * 获取用户行为轨迹
+     */
+    getBreadcrumbs(): BreadcrumbData[];
 }
 export declare const breadcrumb: Breadcrumb;

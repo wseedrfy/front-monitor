@@ -9,6 +9,7 @@ import { behavior } from './behavior';
 import { errorMonitor } from './error';
 import { pageLoadMonitor } from './pageLoad';
 import { networkMonitor } from './network';
+import { tracking } from './tracking'; // 导入埋点模块
 
 /**
  * SDK功能模块说明：
@@ -83,6 +84,9 @@ export function init(options: InitOptions = {}) {
   errorMonitor;  // 错误监控
   pageLoadMonitor; // 页面加载监控
   networkMonitor;  // 网络监控
+  
+  // 初始化埋点
+  tracking; // 确保埋点模块被初始化
   
   loggers.core.log('所有监控器已初始化');
   loggers.core.debug('当前配置:', options);

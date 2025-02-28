@@ -37,7 +37,8 @@ export declare enum ErrorTypes {
     CONSOLE_ERROR = "CONSOLE_ERROR",// 控制台错误
     WINDOW_ERROR = "WINDOW_ERROR",// 全局错误
     MEMORY_ERROR = "MEMORY_ERROR",// 内存错误
-    WEBSOCKET_ERROR = "WEBSOCKET_ERROR"
+    WEBSOCKET_ERROR = "WEBSOCKET_ERROR",// WebSocket错误
+    TRACKING_EVENT = "TRACKING_EVENT"
 }
 export declare enum Severity {
     Critical = "critical",// 严重

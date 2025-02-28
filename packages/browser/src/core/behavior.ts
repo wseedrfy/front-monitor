@@ -2,6 +2,9 @@ import { EventTypes, ErrorTypes } from '../types';
 import { breadcrumb, BreadcrumbTypes } from './breadcrumb';
 import { getLocationHref, getTimestamp } from '../utils';
 import { transportData } from './transport';
+import { loggers } from '../utils/logger';
+
+const logger = loggers.behavior;
 
 interface BehaviorRecord {
   type: string;
@@ -15,19 +18,23 @@ export class Behavior {
   private clickThrottle: number = 300; // 点击事件节流时间(ms)
 
   constructor() {
+    logger.debug('用户行为监控初始化...');
     this.init();
   }
 
   private init(): void {
+    logger.debug('开始监听用户行为...');
     this.initClick();
     this.initScroll();
     this.initVisibility();
+    logger.debug('用户行为监控初始化完成');
   }
 
   /**
    * 监听点击事件
    */
   private initClick(): void {
+    logger.debug('监听点击事件');
     window.addEventListener('click', (event: MouseEvent) => {
       const now = getTimestamp();
       // 节流处理
@@ -49,6 +56,12 @@ export class Behavior {
         time: now
       };
 
+      logger.debug('记录点击行为:', behavior.message, {
+        x: event.x,
+        y: event.y,
+        element: target.tagName.toLowerCase()
+      });
+
       this.recordBehavior(behavior);
     }, true);
   }
@@ -57,6 +70,7 @@ export class Behavior {
    * 监听滚动事件
    */
   private initScroll(): void {
+    logger.debug('监听滚动事件');
     let scrollTimeout: number | null = null;
     
     window.addEventListener('scroll', () => {
@@ -73,6 +87,11 @@ export class Behavior {
           time: getTimestamp()
         };
 
+        logger.debug('记录滚动行为:', {
+          scrollX: window.scrollX,
+          scrollY: window.scrollY
+        });
+
         this.recordBehavior(behavior);
         scrollTimeout = null;
       }, 500);
@@ -83,6 +102,7 @@ export class Behavior {
    * 监听页面可见性变化
    */
   private initVisibility(): void {
+    logger.debug('监听页面可见性');
     document.addEventListener('visibilitychange', () => {
       const behavior: BehaviorRecord = {
         type: 'visibility',
@@ -93,6 +113,8 @@ export class Behavior {
         },
         time: getTimestamp()
       };
+
+      logger.debug('页面可见性变化:', document.hidden ? '隐藏' : '可见');
 
       this.recordBehavior(behavior);
     });

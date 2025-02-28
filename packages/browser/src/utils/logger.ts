@@ -155,5 +155,6 @@ export const loggers = {
   performance: new Logger('performance'),
   network: new Logger('network'),
   behavior: new Logger('behavior'),
-  transport: new Logger('transport')
+  transport: new Logger('transport'),
+  breadcrumb: new Logger('breadcrumb')
 }; 

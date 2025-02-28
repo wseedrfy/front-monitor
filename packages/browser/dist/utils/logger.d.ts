@@ -59,4 +59,5 @@ export declare const loggers: {
     network: Logger;
     behavior: Logger;
     transport: Logger;
+    breadcrumb: Logger;
 };

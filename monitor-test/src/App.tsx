@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { init, ErrorBoundary, loggers } from '@monitor/browser'
+import { init, ErrorBoundary, loggers , breadcrumb , BreadcrumbTypes } from '@monitor/browser'
 
 // SDK初始化
 init({
@@ -10,9 +10,9 @@ init({
   
   // 暂时关闭数据上报
   enabled: false,
-  enabledError: false,
+  enabledError: true,
   enabledPerformance: false,
-  enabledBehavior: false,
+  enabledBehavior: true,
   enabledNetwork: false,
   
   maxBreadcrumbs: 20,
@@ -25,11 +25,27 @@ init({
   beforePushBreadcrumb: (breadcrumb, data) => {
     console.log('记录用户行为:', data);
     return data;
-  }
+  },
 })
 
 function TestComponent() {
   const [count, setCount] = useState(0)
+
+  const handleClick = () => {
+    setCount(count + 1)
+    
+    // 记录点击行为
+    breadcrumb.push({
+      type: BreadcrumbTypes.CLICK,
+      message: `Clicked button: ${count + 1}`,
+      data: { count: count + 1 }
+    })
+  }
+
+  const handleGetBreadcrumbs = () => {
+    const breadcrumbs = breadcrumb.getBreadcrumbs()
+    console.log('用户行为轨迹:', breadcrumbs)
+  }
 
   return (
     <div>
@@ -37,9 +53,10 @@ function TestComponent() {
       
       {/* 测试按钮组 */}
       <div style={{ marginTop: '20px' }}>
-        <button onClick={() => setCount(count + 1)}>
+        <button onClick={handleClick}>
           计数器: {count}
         </button>
+        <button onClick={handleGetBreadcrumbs}>获取用户行为轨迹</button> {/* 新增按钮 */}
       </div>
 
       {/* 错误测试按钮组 */}
