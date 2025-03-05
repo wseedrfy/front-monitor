@@ -4,15 +4,15 @@ import { init, ErrorBoundary, loggers , breadcrumb , BreadcrumbTypes } from '@mo
 // SDK初始化
 init({
   // 基础配置
-  dsn: 'http://localhost:3000/api/errors',
+  dsn: 'http://localhost:3031/api/errors',
   apikey: 'project-key',
   debug: true,
   
   // 暂时关闭数据上报
-  enabled: false,
-  enabledError: true,
+  enabled: true,
+  enabledError: false,
   enabledPerformance: false,
-  enabledBehavior: true,
+  enabledBehavior: false,
   enabledNetwork: false,
   
   maxBreadcrumbs: 20,
@@ -134,6 +134,8 @@ function TestComponent() {
           console.log(JSON.stringify(allLogs, null, 2));
         }}>导出完整日志</button>
       </div>
+
+      <div id='test' className='text-red-500'>你好世界</div>
     </div>
   )
 }

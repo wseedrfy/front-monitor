@@ -5,11 +5,30 @@
   "scripts": {
     "dev:sdk": "pnpm --filter @monitor/browser dev",
     "dev:test": "pnpm --filter monitor-test dev",
-    "dev:server": "pnpm --filter monitor-test run server",
+    "dev:server": "ts-node backend/server.ts",
     "dev": "concurrently \"pnpm dev:sdk\" \"pnpm dev:server\" \"pnpm dev:test\"",
-    "build": "pnpm --filter @monitor/browser build"
+    "build": "pnpm --filter @monitor/browser build",
+    "start": "ts-node backend/server.ts",
+    "start:dev": "ts-node-dev --respawn backend/server.ts"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
-} 
+    "@types/koa": "^2.13.12",
+    "@types/koa-bodyparser": "^4.3.12",
+    "@types/node": "^20.8.2",
+    "@types/sqlite3": "^3.1.11",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "koa": "^2.16.0",
+    "koa-bodyparser": "^4.4.1",
+    "mysql2": "^3.9.1"
+  },
+  "main": "test.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
