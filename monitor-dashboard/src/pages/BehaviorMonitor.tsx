@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Table, DatePicker, Space, Tag, Select, Row, Col, Statistic } from 'antd';
 import { Line } from '@ant-design/charts';
-import { fetchLogs, fetchErrorTrend, fetchStatistics } from '../services/api';
-import { LogItem, ErrorTypes } from '../types';
+import { fetchLogs, fetchBehaviorTrend, fetchStatistics } from '../services/api';
+import { LogItem, BehaviorTypes } from '../types';
 import dayjs from 'dayjs';
-import { WarningOutlined, BugOutlined, AlertOutlined } from '@ant-design/icons';
+import { UserOutlined, AimOutlined, GlobalOutlined } from '@ant-design/icons';
 
 const { RangePicker } = DatePicker;
 
-const ErrorMonitor: React.FC = () => {
+const BehaviorMonitor: React.FC = () => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [trendData, setTrendData] = useState<any[]>([]);
@@ -26,15 +26,17 @@ const ErrorMonitor: React.FC = () => {
         fetchLogs({
           type: selectedType,
           startTime: timeRange[0],
-          endTime: timeRange[1]
+          endTime: timeRange[1],
+          category: 'BEHAVIOR'
         }),
-        fetchErrorTrend({
+        fetchBehaviorTrend({
           startTime: timeRange[0],
           endTime: timeRange[1]
         }),
         fetchStatistics({
           startTime: timeRange[0],
-          endTime: timeRange[1]
+          endTime: timeRange[1],
+          category: 'BEHAVIOR'
         })
       ]);
       setLogs(logsData.data);
@@ -63,15 +65,28 @@ const ErrorMonitor: React.FC = () => {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={type.includes('ERROR') ? 'error' : 'default'}>
+        <Tag color={type === BehaviorTypes.CLICK ? 'blue' : type === BehaviorTypes.ROUTE ? 'green' : 'orange'}>
           {type}
         </Tag>
       )
     },
     {
-      title: '消息',
-      dataIndex: 'message',
-      key: 'message'
+      title: '事件详情',
+      dataIndex: 'data',
+      key: 'data',
+      render: (data: any) => {
+        const eventData = typeof data === 'string' ? JSON.parse(data) : data;
+        switch (eventData.type) {
+          case BehaviorTypes.CLICK:
+            return `点击了 ${eventData.element} (${eventData.xpath})`;
+          case BehaviorTypes.ROUTE:
+            return `路由从 ${eventData.from} 变更到 ${eventData.to}`;
+          case BehaviorTypes.CUSTOM:
+            return `${eventData.message || '自定义事件'}`;
+          default:
+            return JSON.stringify(eventData);
+        }
+      }
     },
     {
       title: 'URL',
@@ -105,16 +120,6 @@ const ErrorMonitor: React.FC = () => {
       label: {
         formatter: (v: string) => `${v}次`
       }
-    },
-    point: {
-      size: 5,
-      shape: 'diamond'
-    },
-    animation: {
-      appear: {
-        animation: 'wave-in',
-        duration: 1500
-      }
     }
   };
 
@@ -144,40 +149,40 @@ const ErrorMonitor: React.FC = () => {
           <Col span={8}>
             <Card>
               <Statistic
-                title="总错误数"
-                value={statistics.totalErrors || 0}
-                prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
+                title="点击事件"
+                value={statistics.clickCount || 0}
+                prefix={<AimOutlined style={{ color: '#1890ff' }} />}
               />
             </Card>
           </Col>
           <Col span={8}>
             <Card>
               <Statistic
-                title="今日错误数"
-                value={statistics.todayErrors || 0}
-                prefix={<BugOutlined style={{ color: '#faad14' }} />}
+                title="路由变更"
+                value={statistics.routeCount || 0}
+                prefix={<GlobalOutlined style={{ color: '#52c41a' }} />}
               />
             </Card>
           </Col>
           <Col span={8}>
             <Card>
               <Statistic
-                title="严重错误数"
-                value={statistics.criticalErrors || 0}
-                prefix={<AlertOutlined style={{ color: '#ff7875' }} />}
+                title="用户会话"
+                value={statistics.sessionCount || 0}
+                prefix={<UserOutlined style={{ color: '#722ed1' }} />}
               />
             </Card>
           </Col>
         </Row>
 
-        <Card title="错误趋势">
+        <Card title="行为趋势">
           <Space style={{ marginBottom: 16 }}>
             <Select
               style={{ width: 200 }}
-              placeholder="选择错误类型"
+              placeholder="选择行为类型"
               allowClear
               onChange={setSelectedType}
-              options={Object.entries(ErrorTypes).map(([key, value]) => ({
+              options={Object.entries(BehaviorTypes).map(([key, value]) => ({
                 label: key,
                 value: value
               }))}
@@ -195,7 +200,7 @@ const ErrorMonitor: React.FC = () => {
           <Line {...config} />
         </Card>
 
-        <Card title="错误日志">
+        <Card title="行为日志">
           <Table
             columns={columns}
             dataSource={logs}
@@ -212,4 +217,4 @@ const ErrorMonitor: React.FC = () => {
   );
 };
 
-export default ErrorMonitor; 
+export default BehaviorMonitor; 

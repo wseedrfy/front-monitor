@@ -10,10 +10,10 @@ init({
   
   // 暂时关闭数据上报
   enabled: true,
-  enabledError: false,
+  enabledError: true,
   enabledPerformance: false,
-  enabledBehavior: false,
-  enabledNetwork: false,
+  enabledBehavior: true,
+  enabledNetwork: true,
   
   maxBreadcrumbs: 20,
   

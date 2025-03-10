@@ -17,6 +17,13 @@ export enum ErrorTypes {
   TRACKING_EVENT = 'TRACKING_EVENT'
 }
 
+// 用户行为类型
+export enum BehaviorTypes {
+  CLICK = 'CLICK',
+  ROUTE = 'ROUTE',
+  CUSTOM = 'CUSTOM'
+}
+
 // 错误等级
 export enum Severity {
   Critical = 'critical',
@@ -58,4 +65,23 @@ export interface Statistics {
   errorsByType: Record<ErrorTypes, number>;
   errorsByLevel: Record<Severity, number>;
   averagePerformance: PerformanceMetrics;
+}
+
+// 用户行为数据
+export interface BehaviorData {
+  type: BehaviorTypes;
+  element?: string;
+  xpath?: string;
+  from?: string;
+  to?: string;
+  message?: string;
+  [key: string]: any;
+}
+
+// 用户行为统计
+export interface BehaviorStatistics {
+  clickCount: number;
+  routeCount: number;
+  sessionCount: number;
+  behaviorsByType: Record<BehaviorTypes, number>;
 } 

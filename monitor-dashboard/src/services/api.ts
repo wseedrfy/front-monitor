@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LogItem, Statistics } from '../types';
+import { LogItem, Statistics, BehaviorStatistics } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3031/api'
@@ -11,6 +11,7 @@ export const fetchLogs = async (params?: {
   endTime?: number;
   page?: number;
   pageSize?: number;
+  category?: 'ERROR' | 'BEHAVIOR';
 }) => {
   const response = await api.get<{
     data: LogItem[];
@@ -19,32 +20,43 @@ export const fetchLogs = async (params?: {
   return response.data;
 };
 
-export const fetchStatistics = async (timeRange?: {
+export const fetchStatistics = async (params?: {
   startTime?: number;
   endTime?: number;
+  category?: 'ERROR' | 'BEHAVIOR';
 }) => {
-  const response = await api.get<Statistics>('/statistics', {
-    params: timeRange
+  const response = await api.get<Statistics | BehaviorStatistics>('/statistics', {
+    params
   });
   return response.data;
 };
 
-export const fetchErrorTrend = async (timeRange: {
+export const fetchErrorTrend = async (params: {
   startTime: number;
   endTime: number;
 }) => {
   const response = await api.get('/error-trend', {
-    params: timeRange
+    params
   });
   return response.data;
 };
 
-export const fetchPerformanceMetrics = async (timeRange?: {
+export const fetchBehaviorTrend = async (params: {
+  startTime: number;
+  endTime: number;
+}) => {
+  const response = await api.get('/behavior-trend', {
+    params
+  });
+  return response.data;
+};
+
+export const fetchPerformanceMetrics = async (params?: {
   startTime?: number;
   endTime?: number;
 }) => {
   const response = await api.get('/performance', {
-    params: timeRange
+    params
   });
   return response.data;
 }; 

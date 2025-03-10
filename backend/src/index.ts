@@ -6,77 +6,64 @@ import { dbConfig } from './config/database';
 import { createRoutes } from './routes';
 
 const app = new Koa();
-const PORT = 3031;
 
-// MySQL 数据库连接初始化
+// 配置 bodyParser，增加大小限制
+app.use(bodyParser({
+  jsonLimit: '10mb'
+}));
+app.use(cors());
+
+// 数据库连接
+let db: mysql.Connection;
+
 async function initDatabase() {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    console.log('Successfully connected to MySQL database');
-    
-    // 创建日志表
-    await connection.execute(`
+    db = await mysql.createConnection(dbConfig);
+    console.log('Connected to MySQL database');
+
+    // 创建日志表（如果不存在）
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS monitor_logs (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        type VARCHAR(50),
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        type VARCHAR(50) NOT NULL,
         message TEXT,
-        url VARCHAR(255),
-        time BIGINT,
+        url VARCHAR(1024),
         data JSON,
+        time BIGINT NOT NULL,
+        category ENUM('ERROR', 'BEHAVIOR', 'PERFORMANCE') NOT NULL DEFAULT 'ERROR',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Monitor logs table created or already exists');
-
-    return connection;
+    console.log('Monitor logs table ready');
   } catch (error) {
-    console.error('Database connection error:', error);
-    throw error;
-  }
-}
-
-// 初始化应用
-async function bootstrap() {
-  try {
-    // 连接数据库
-    const dbConnection = await initDatabase();
-
-    // 中间件：CORS
-    app.use(cors({
-      origin: '*',
-      allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization']
-    }));
-
-    // 中间件：解析请求体
-    app.use(bodyParser({
-      enableTypes: ['json'],
-      jsonLimit: '10mb',
-      formLimit: '10mb',
-      textLimit: '10mb'
-    }));
-
-    // 路由
-    const router = createRoutes(dbConnection);
-    app.use(router.routes());
-    app.use(router.allowedMethods());
-
-    // 优雅关闭数据库连接
-    process.on('SIGINT', async () => {
-      await dbConnection.end();
-      console.log('Database connection closed.');
-      process.exit(0);
-    });
-
-    // 启动服务器
-    app.listen(PORT, () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Database initialization error:', error);
     process.exit(1);
   }
 }
 
-// 启动应用
-bootstrap(); 
+// 初始化数据库并启动服务器
+initDatabase().then(() => {
+  // 路由
+  const router = createRoutes(db);
+  app.use(router.routes()).use(router.allowedMethods());
+
+  // 启动服务器
+  const port = 3031;
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+});
+
+// 优雅关闭
+process.on('SIGINT', async () => {
+  try {
+    if (db) {
+      await db.end();
+      console.log('Database connection closed');
+    }
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exit(1);
+  }
+}); 

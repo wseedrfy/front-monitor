@@ -1,65 +1,65 @@
 import { Context } from 'koa';
-import { Connection } from 'mysql2/promise';
+import { Connection, RowDataPacket } from 'mysql2/promise';
+import dayjs from 'dayjs';
 
 export class StatisticsController {
-  private dbConnection: Connection;
+  private db: Connection;
 
-  constructor(dbConnection: Connection) {
-    this.dbConnection = dbConnection;
+  constructor(db: Connection) {
+    this.db = db;
   }
 
   // 获取统计数据
   async getStatistics(ctx: Context) {
     try {
-      const { startTime, endTime } = ctx.query;
-      const timeFilter = startTime && endTime
-        ? 'AND time BETWEEN ? AND ?'
-        : '';
+      const { startTime, endTime, category = 'ERROR' } = ctx.query;
+      const params: any[] = [];
+      let whereClause = 'WHERE 1=1';
 
-      // 获取总错误数
-      const [totalResult] = await this.dbConnection.execute(
-        `SELECT COUNT(*) as total FROM monitor_logs WHERE type LIKE '%ERROR%' ${timeFilter}`,
-        timeFilter ? [startTime, endTime] : []
-      );
-      const totalErrors = (totalResult as any)[0].total;
+      if (startTime) {
+        whereClause += ' AND time >= ?';
+        params.push(Number(startTime));
+      }
 
-      // 按错误类型统计
-      const [typeResult] = await this.dbConnection.execute(
-        `SELECT type, COUNT(*) as count 
-         FROM monitor_logs 
-         WHERE type LIKE '%ERROR%' ${timeFilter}
-         GROUP BY type`,
-        timeFilter ? [startTime, endTime] : []
-      );
+      if (endTime) {
+        whereClause += ' AND time <= ?';
+        params.push(Number(endTime));
+      }
 
-      // 获取性能指标平均值
-      const [perfResult] = await this.dbConnection.execute(
-        `SELECT 
-           AVG(JSON_EXTRACT(data, '$.DNS')) as DNS,
-           AVG(JSON_EXTRACT(data, '$.TCP')) as TCP,
-           AVG(JSON_EXTRACT(data, '$.TTFB')) as TTFB,
-           AVG(JSON_EXTRACT(data, '$.FP')) as FP,
-           AVG(JSON_EXTRACT(data, '$.FCP')) as FCP,
-           AVG(JSON_EXTRACT(data, '$.LCP')) as LCP,
-           AVG(JSON_EXTRACT(data, '$.FID')) as FID,
-           AVG(JSON_EXTRACT(data, '$.CLS')) as CLS
-         FROM monitor_logs 
-         WHERE type = 'PERFORMANCE' ${timeFilter}`,
-        timeFilter ? [startTime, endTime] : []
-      );
+      whereClause += ' AND category = ?';
+      params.push(category);
 
-      ctx.body = {
-        totalErrors,
-        errorsByType: (typeResult as any[]).reduce((acc, { type, count }) => {
-          acc[type] = count;
-          return acc;
-        }, {}),
-        averagePerformance: (perfResult as any)[0]
-      };
+      if (category === 'ERROR') {
+        const query = `
+          SELECT 
+            COUNT(*) as totalErrors,
+            COUNT(DISTINCT JSON_EXTRACT(data, '$.url')) as affectedUrls,
+            COUNT(DISTINCT type) as errorTypes
+          FROM monitor_logs
+          ${whereClause}
+        `;
+
+        const [rows] = await this.db.query<RowDataPacket[]>(query, params);
+        ctx.body = rows[0];
+      } else {
+        const query = `
+          SELECT 
+            COUNT(*) as totalBehaviors,
+            COUNT(CASE WHEN type = 'CLICK' THEN 1 END) as clicks,
+            COUNT(CASE WHEN type = 'ROUTE' THEN 1 END) as routes,
+            COUNT(CASE WHEN type = 'CUSTOM' THEN 1 END) as customs,
+            COUNT(DISTINCT JSON_EXTRACT(data, '$.sessionId')) as uniqueSessions
+          FROM monitor_logs
+          ${whereClause}
+        `;
+
+        const [rows] = await this.db.query<RowDataPacket[]>(query, params);
+        ctx.body = rows[0];
+      }
     } catch (error) {
       console.error('Error getting statistics:', error);
       ctx.status = 500;
-      ctx.body = { message: 'Failed to get statistics' };
+      ctx.body = { error: 'Failed to get statistics' };
     }
   }
 
@@ -67,31 +67,73 @@ export class StatisticsController {
   async getErrorTrend(ctx: Context) {
     try {
       const { startTime, endTime } = ctx.query;
-      
-      if (!startTime || !endTime) {
-        ctx.status = 400;
-        ctx.body = { message: 'startTime and endTime are required' };
-        return;
+      const params: any[] = [];
+      let whereClause = 'WHERE category = "ERROR"';
+
+      if (startTime) {
+        whereClause += ' AND time >= ?';
+        params.push(Number(startTime));
       }
 
-      const [result] = await this.dbConnection.execute(
-        `SELECT 
-           DATE(FROM_UNIXTIME(time/1000)) as date,
-           type,
-           COUNT(*) as count
-         FROM monitor_logs
-         WHERE type LIKE '%ERROR%'
-         AND time BETWEEN ? AND ?
-         GROUP BY DATE(FROM_UNIXTIME(time/1000)), type
-         ORDER BY date`,
-        [startTime, endTime]
-      );
+      if (endTime) {
+        whereClause += ' AND time <= ?';
+        params.push(Number(endTime));
+      }
 
-      ctx.body = result;
+      const query = `
+        SELECT 
+          DATE_FORMAT(FROM_UNIXTIME(time/1000), '%Y-%m-%d %H:00:00') as hour,
+          COUNT(*) as count,
+          type
+        FROM monitor_logs
+        ${whereClause}
+        GROUP BY hour, type
+        ORDER BY hour ASC
+      `;
+
+      const [rows] = await this.db.query<RowDataPacket[]>(query, params);
+      ctx.body = rows;
     } catch (error) {
       console.error('Error getting error trend:', error);
       ctx.status = 500;
-      ctx.body = { message: 'Failed to get error trend' };
+      ctx.body = { error: 'Failed to get error trend' };
+    }
+  }
+
+  // 获取行为趋势
+  async getBehaviorTrend(ctx: Context) {
+    try {
+      const { startTime, endTime } = ctx.query;
+      const params: any[] = [];
+      let whereClause = 'WHERE category = "BEHAVIOR"';
+
+      if (startTime) {
+        whereClause += ' AND time >= ?';
+        params.push(Number(startTime));
+      }
+
+      if (endTime) {
+        whereClause += ' AND time <= ?';
+        params.push(Number(endTime));
+      }
+
+      const query = `
+        SELECT 
+          DATE_FORMAT(FROM_UNIXTIME(time/1000), '%Y-%m-%d %H:00:00') as hour,
+          COUNT(*) as count,
+          type
+        FROM monitor_logs
+        ${whereClause}
+        GROUP BY hour, type
+        ORDER BY hour ASC
+      `;
+
+      const [rows] = await this.db.query<RowDataPacket[]>(query, params);
+      ctx.body = rows;
+    } catch (error) {
+      console.error('Error getting behavior trend:', error);
+      ctx.status = 500;
+      ctx.body = { error: 'Failed to get behavior trend' };
     }
   }
 
@@ -99,26 +141,40 @@ export class StatisticsController {
   async getPerformanceMetrics(ctx: Context) {
     try {
       const { startTime, endTime } = ctx.query;
-      const timeFilter = startTime && endTime
-        ? 'AND time BETWEEN ? AND ?'
-        : '';
+      const params: any[] = [];
+      let whereClause = 'WHERE type = "PERFORMANCE"';
 
-      const [result] = await this.dbConnection.execute(
-        `SELECT data
-         FROM monitor_logs
-         WHERE type = 'PERFORMANCE' ${timeFilter}
-         ORDER BY time DESC
-         LIMIT 1`,
-        timeFilter ? [startTime, endTime] : []
-      );
+      if (startTime) {
+        whereClause += ' AND time >= ?';
+        params.push(Number(startTime));
+      }
 
-      ctx.body = (result as any[])[0]?.data 
-        ? JSON.parse((result as any[])[0].data)
-        : {};
+      if (endTime) {
+        whereClause += ' AND time <= ?';
+        params.push(Number(endTime));
+      }
+
+      const query = `
+        SELECT 
+          AVG(JSON_EXTRACT(data, '$.dns')) as avgDns,
+          AVG(JSON_EXTRACT(data, '$.tcp')) as avgTcp,
+          AVG(JSON_EXTRACT(data, '$.ttfb')) as avgTtfb,
+          AVG(JSON_EXTRACT(data, '$.fp')) as avgFp,
+          AVG(JSON_EXTRACT(data, '$.fcp')) as avgFcp,
+          AVG(JSON_EXTRACT(data, '$.lcp')) as avgLcp,
+          AVG(JSON_EXTRACT(data, '$.fid')) as avgFid,
+          AVG(JSON_EXTRACT(data, '$.cls')) as avgCls,
+          COUNT(*) as sampleCount
+        FROM monitor_logs
+        ${whereClause}
+      `;
+
+      const [rows] = await this.db.query<RowDataPacket[]>(query, params);
+      ctx.body = rows[0];
     } catch (error) {
       console.error('Error getting performance metrics:', error);
       ctx.status = 500;
-      ctx.body = { message: 'Failed to get performance metrics' };
+      ctx.body = { error: 'Failed to get performance metrics' };
     }
   }
 } 

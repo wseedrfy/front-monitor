@@ -1,102 +1,133 @@
 import { Context } from 'koa';
-import { Connection } from 'mysql2/promise';
-import { LogData } from '../types/log';
+import { Connection, RowDataPacket } from 'mysql2/promise';
+
+interface LogData {
+  type: string;
+  data?: any;
+  time: number;
+  url?: string;
+  message?: string;
+  level?: string;
+  request?: any;
+  response?: any;
+}
 
 export class LogController {
-  private dbConnection: Connection;
+  private db: Connection;
 
-  constructor(dbConnection: Connection) {
-    this.dbConnection = dbConnection;
+  constructor(db: Connection) {
+    this.db = db;
   }
 
   async createLog(ctx: Context) {
     try {
       const logData = ctx.request.body as LogData;
-      
-      // 数据验证
-      if (!logData || typeof logData !== 'object') {
+      console.log('Received log data:', logData);
+
+      // 验证必填字段
+      if (!logData.type) {
         ctx.status = 400;
-        ctx.body = { message: '无效的日志数据' };
+        ctx.body = { error: 'Missing type field' };
         return;
       }
 
-      // 确保所有必要字段都存在，并处理可能的undefined值
-      const sanitizedData = {
-        type: logData.type || 'UNKNOWN',
-        message: logData.message || '',
-        url: logData.url || '',
-        time: logData.time || Date.now(),
-        data: logData.data ? JSON.stringify(logData.data) : null
+      if (!logData.time) {
+        ctx.status = 400;
+        ctx.body = { error: 'Missing time field' };
+        return;
+      }
+
+      // 构建完整的数据对象
+      const fullData = {
+        ...logData,
+        level: logData.level || 'info',
+        request: logData.request || null,
+        response: logData.response || null
       };
 
-      // 将日志存储到数据库
-      await this.dbConnection.execute(
-        'INSERT INTO monitor_logs (type, message, url, time, data) VALUES (?, ?, ?, ?, ?)',
-        [
-          sanitizedData.type,
-          sanitizedData.message,
-          sanitizedData.url,
-          sanitizedData.time,
-          sanitizedData.data
-        ]
+      // 处理 data 字段
+      const data = JSON.stringify(fullData);
+
+      const category = logData.type.startsWith('ERROR') ? 'ERROR' : 'BEHAVIOR';
+      
+      // 构建插入数据
+      const insertData = {
+        type: logData.type,
+        data,
+        time: logData.time,
+        url: logData.url || '',
+        message: logData.message || '',
+        category
+      };
+
+      console.log('Inserting data:', insertData);
+
+      const [result] = await this.db.execute(
+        'INSERT INTO monitor_logs (type, data, time, url, message, category) VALUES (?, ?, ?, ?, ?, ?)',
+        [insertData.type, insertData.data, insertData.time, insertData.url, insertData.message, insertData.category]
       );
 
-      ctx.status = 200;
-      ctx.body = { message: 'Log received and stored successfully' };
+      ctx.body = { success: true, data: result };
     } catch (error) {
-      console.error('Error storing log:', error);
+      console.error('Error creating log:', error);
       ctx.status = 500;
-      ctx.body = { message: 'Failed to store log', error: String(error) };
+      ctx.body = { 
+        error: 'Failed to create log',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 
   async getLogs(ctx: Context) {
     try {
-      const { type, startTime, endTime, page = '1', pageSize = '10' } = ctx.query;
-      const offset = (Number(page) - 1) * Number(pageSize);
-      
-      // 构建查询条件
-      let sql = 'SELECT * FROM monitor_logs';
+      const { type, startTime, endTime, page = 1, pageSize = 10, category } = ctx.query;
       const params: any[] = [];
-      const conditions: string[] = [];
-      
+      let whereClause = 'WHERE 1=1';
+
+      if (category) {
+        whereClause += ' AND category = ?';
+        params.push(category);
+      }
+
       if (type) {
-        conditions.push('type = ?');
+        whereClause += ' AND type = ?';
         params.push(type);
       }
-      
-      if (startTime && endTime) {
-        conditions.push('time BETWEEN ? AND ?');
-        params.push(Number(startTime), Number(endTime));
-      }
-      
-      if (conditions.length > 0) {
-        sql += ' WHERE ' + conditions.join(' AND ');
+
+      if (startTime) {
+        whereClause += ' AND time >= ?';
+        params.push(Number(startTime));
       }
 
-      // 获取总数
-      const [countResult] = await this.dbConnection.query(
-        `SELECT COUNT(*) as total FROM monitor_logs ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}`,
-        params
-      );
-      const total = (countResult as any)[0].total;
+      if (endTime) {
+        whereClause += ' AND time <= ?';
+        params.push(Number(endTime));
+      }
 
-      // 获取分页数据
-      sql += ' ORDER BY time DESC LIMIT ? OFFSET ?';
-      params.push(Number(pageSize), Number(offset));
+      const offset = (Number(page) - 1) * Number(pageSize);
+      const countQuery = `SELECT COUNT(*) as total FROM monitor_logs ${whereClause}`;
+      const [totalRows] = await this.db.query<RowDataPacket[]>(countQuery, params);
+      const total = totalRows[0].total;
 
-      const [logs] = await this.dbConnection.query(sql, params);
+      const query = `
+        SELECT * FROM monitor_logs 
+        ${whereClause}
+        ORDER BY time DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      const [rows] = await this.db.query<RowDataPacket[]>(query, [...params, Number(pageSize), offset]);
 
       ctx.body = {
-        data: logs,
+        data: rows,
         total,
         page: Number(page),
         pageSize: Number(pageSize)
       };
     } catch (error) {
-      console.error('Error querying logs:', error);
+      console.error('Error getting logs:', error);
       ctx.status = 500;
-      ctx.body = { message: 'Failed to query logs' };
+      ctx.body = { error: 'Failed to get logs' };
     }
   }
 } 
