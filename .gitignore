@@ -1,1 +1,6 @@
 node_modules
+backend/node_modules
+backend/src/config/database.ts
+monitor-dashboard/node_modules
+monitor-test/node_modules
+packages/browser/node_modules
